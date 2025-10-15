@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw, DollarSign, AlertCircle } from 'lucide-react';
+import Image from 'next/image';
 
 interface Token {
   id: string;
@@ -13,6 +14,17 @@ interface Token {
   marketCapRank: number;
   loading: boolean;
   image: string;
+}
+
+interface CoinData {
+  id: string;
+  symbol: string;
+  name: string;
+  image: string;
+  current_price: number;
+  market_cap: number;
+  market_cap_rank: number;
+  price_change_percentage_24h: number;
 }
 
 const TokenPriceTracker = () => {
@@ -40,10 +52,10 @@ const TokenPriceTracker = () => {
         throw new Error('Failed to fetch prices');
       }
 
-      const data = await response.json();
+      const data: CoinData[] = await response.json();
       
       // Map the data to our token format
-      const mappedTokens: Token[] = data.map((coin: any) => ({
+      const mappedTokens: Token[] = data.map((coin: CoinData) => ({
         id: coin.id,
         symbol: coin.symbol.toUpperCase(),
         name: coin.name,
@@ -230,11 +242,13 @@ const TokenPriceTracker = () => {
       flex: 1,
       minWidth: 0,
     },
-    tokenImage: {
+    tokenImageWrapper: {
       width: '2rem',
       height: '2rem',
       borderRadius: '9999px',
       flexShrink: 0,
+      position: 'relative' as const,
+      overflow: 'hidden',
     },
     tokenInfo: {
       display: 'flex',
@@ -435,11 +449,15 @@ const TokenPriceTracker = () => {
               >
                 <div style={styles.tokenHeader}>
                   <div style={styles.tokenLeft}>
-                    <img 
-                      src={token.image} 
-                      alt={token.name}
-                      style={styles.tokenImage}
-                    />
+                    <div style={styles.tokenImageWrapper}>
+                      <Image 
+                        src={token.image} 
+                        alt={token.name}
+                        fill
+                        sizes="32px"
+                        style={{ objectFit: 'cover' }}
+                      />
+                    </div>
                     <div style={styles.tokenInfo}>
                       <span style={styles.tokenSymbol}>{token.symbol}</span>
                       <span style={styles.tokenName}>{token.name}</span>
