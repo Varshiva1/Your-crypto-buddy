@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, RefreshCw, DollarSign, AlertCircle } from 'lucide-react';
 import Image from 'next/image';
+import { sdk } from '@farcaster/miniapp-sdk';
 
 interface Token {
   id: string;
@@ -29,11 +30,15 @@ interface CoinData {
 
 const TokenPriceTracker = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const fetchPrices = async () => {
+    // Only fetch on client side
+    if (typeof window === 'undefined') return;
+    
     setIsRefreshing(true);
     setError(null);
     
@@ -79,7 +84,29 @@ const TokenPriceTracker = () => {
   };
 
   useEffect(() => {
-    fetchPrices();
+    // Mark component as mounted (client-side only)
+    setMounted(true);
+
+    // Initialize the app
+    const initializeApp = async () => {
+      try {
+        // Fetch initial prices
+        await fetchPrices();
+        
+        // Tell Farcaster the app is ready to display
+        if (typeof window !== 'undefined') {
+          try {
+            await sdk.actions.ready();
+          } catch (e) {
+            console.error('Error calling sdk.actions.ready:', e);
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing app:', error);
+      }
+    };
+
+    initializeApp();
     
     // Update every 60 seconds
     const interval = setInterval(fetchPrices, 60000);
@@ -107,7 +134,8 @@ const TokenPriceTracker = () => {
     return `$${marketCap.toLocaleString()}`;
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (date: Date | null) => {
+    if (!date) return '--:--:--';
     return date.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit',
@@ -325,6 +353,34 @@ const TokenPriceTracker = () => {
       marginBottom: '0.375rem',
     },
   };
+
+  // Show loading state until mounted
+  if (!mounted) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.innerContainer}>
+          <div style={styles.header}>
+            <div style={styles.iconContainer}>
+              <DollarSign style={{ width: '1.5rem', height: '1.5rem', color: 'white' }} />
+            </div>
+            <h1 style={styles.title}>Top 10 Crypto Prices</h1>
+            <p style={styles.subtitle}>Live prices by market cap • Powered by CoinGecko</p>
+          </div>
+          <div className="tokensGrid" style={styles.tokensGrid}>
+            {[...Array(10)].map((_, i) => (
+              <div key={i} style={styles.tokenCard}>
+                <div style={styles.skeleton}>
+                  <div style={{ ...styles.skeletonBar, width: '60%' }}></div>
+                  <div style={{ ...styles.skeletonBar, width: '40%' }}></div>
+                  <div style={{ ...styles.skeletonBar, width: '80%' }}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>
